@@ -1,58 +1,68 @@
+#!/usr/bin/env node
 
-// const connect = require('connect');
-// const app = connect();
-var express = require('express');
-var app = express();
+const express = require('express');
+const app = express();
 const fs = require('fs');
 const proxy = require('http-proxy-middleware');
 require('colors');
 
 const cacheDir = 'mocks';
+const confFileName = 'proxy-mock.conf.json';
 
-let proxyTarget = 'http://localhost:8080';
+const confLocation = process.cwd() + '/' + confFileName;
+const dirCacheFile = process.cwd() + '/' + cacheDir;
 
-let config = {
+const baseConfig = {
+	host: "http://localhost:8080",
 	routeConfig: [
 		{
-			expression: /payment/i,
-			delay: 8
-		},
-		{
-			expression: /_count-orders/ig,
+			expression: "delayed/endpoint",
+			delay: 5,
 			status: 500,
-			body: "Error genérico"
+			body: "This is a custom response body!"
 		}
 	]
 }
 
 
 function getLocalConfig() {
-    var config;
+    let localConfig;
     try {
-        config = process.cwd() + '/conf.json';
+			//localConfig = require(confLocation);
+			let rawdata = fs.readFileSync(confLocation);  
+			localConfig = JSON.parse(rawdata); 
     } catch(e) {
-        config = {};
+			localConfig = baseConfig;
+
+			let jsonConfig = JSON.stringify(localConfig, null, '\t');
+      fs.writeFileSync(confLocation, jsonConfig, 'utf8', function (err) {
+        if (err) {
+					return console.log(`Couldn't create initial config file.`);
+        }
+      });
     }
-    return config;
+    return localConfig;
 }
+
+let config = getLocalConfig();
 
 
 function getFileName(url) {
-    return url
-        .replace(/^\//, "").replace(/\/$/, "")
-        .replace(/\//g, ".")
-        //.replace(/\/?\.[0-9]+-[0-9kK]+/, "")     // quito rut
-        + '.json'
+	return url
+			.replace(/^\//, "").replace(/\/$/, "")
+			.replace(/\//g, ".")
+			//.replace(/\/?\.[0-9]+-[0-9kK]+/, "")     // quito rut
+			+ '.json';
 }
-
 
 
 function useCacheMiddleware(req, res, next) {
 
-	let dirCacheFile = __dirname + '/' + cacheDir;
+	if (config.skipCache) return next();
+	
 	let cacheFile = dirCacheFile + '/' + getFileName(req.url);
 
-	if (! fs.existsSync(cacheFile)) return next();
+	if (!fs.existsSync(cacheFile)) return next();
 
 	let output = fs.readFileSync(cacheFile, {encoding: 'utf8'});
 
@@ -66,11 +76,12 @@ function useCacheMiddleware(req, res, next) {
 
 
 
-let buildCacheMiddleware = proxy({
-    target: proxyTarget,
+function makeProxy() {
+	return proxy({
+    target: config.host,
 
     onProxyReq: function(proxyReq, req, res) {
-		//proxyReq.setHeader('foo', 'bar' );
+			//proxyReq.setHeader('foo', 'bar' );
     },
 
     onProxyRes: function(proxyRes, req, res) {
@@ -87,32 +98,25 @@ let buildCacheMiddleware = proxy({
       // Defer all writes
       res.write = () => {};
       res.end = function() {
-			output = body;
+				output = body;
 
-			var dirCacheFile = __dirname + '/' + cacheDir;
-			var cacheFile = dirCacheFile + '/' + getFileName(req.url);
+				let cacheFile = dirCacheFile + '/' + getFileName(req.url);
 
-			saveResponse(output, req, res, dirCacheFile, cacheFile)
+				saveResponse(output, req, res, dirCacheFile, cacheFile)
 
-			res.write = _write;
+				res.write = _write;
 
-			if ( body.length ) {
-				_end.apply( res, [output] );
-			} else {
-				_end.apply( res, arguments );
-			}
+				if ( body.length ) {
+					_end.apply( res, [output] );
+				} else {
+					_end.apply( res, arguments );
+				}
       }
     },
 
     logLevel: 'debug'
-  }
-);
-
-
-
-
-
-
+  });
+}
 
 
 
@@ -122,7 +126,7 @@ let buildCacheMiddleware = proxy({
 * @param {Object} res 
 */
 function saveResponse(body, req, res, cacheDir, cacheFile) {
-	var contentType = res.getHeader('Content-Type');
+	let contentType = res.getHeader('Content-Type');
 
 	// guarda solo respuestas json y con status 200
 	if (/json/.test(contentType) && res.statusCode === 200) {
@@ -145,7 +149,7 @@ function saveResponse(body, req, res, cacheDir, cacheFile) {
 function customResponseMiddleware(req, res, next) {
 	if (req.method === 'OPTIONS') return next();
 	for (let route of config.routeConfig) {
-		if (route.expression.test(req.url)) {
+		if ((new RegExp(route.expression)).test(req.url)) {
 			if (route.status && [200,204].indexOf(route.status)<0) {
 				res.status(route.status).send(route.body);
 			}
@@ -159,9 +163,9 @@ function customResponseMiddleware(req, res, next) {
 function delaysMiddleware(req, res, next) {
 	if (req.method === 'OPTIONS') return next();
 	let delay = 0;
-	for (let d of config.routeConfig) {
-		if (d.expression.test(req.url)) {
-			delay = d.delay || 0;
+	for (let route of config.routeConfig) {
+		if ((new RegExp(route.expression)).test(req.url)) {
+			delay = route.delay || 0;
 		}
 	}
 	
@@ -170,20 +174,30 @@ function delaysMiddleware(req, res, next) {
 	}, delay*1000);
 }
 
+function initServer(restarted) {
+	app.use(function(req, res, next) {
+		res.setHeader('Access-Control-Allow-Origin', '*');
+		res.setHeader('Access-Control-Allow-Methods', '*');
+		res.setHeader('Access-Control-Allow-Headers', '*');
+	
+		next();
+	})
+	.use(delaysMiddleware)
+	.use(customResponseMiddleware)
+	.use(useCacheMiddleware)
+	.use(makeProxy());
+	
+	const server = app.listen(3000, function () {
+		console.log( restarted ? 'Server restarted' : 'Backend proxy running on port 3000');
+	});
+	return server;
+}
 
-app.use(function(req, res, next) {
-	res.setHeader('Access-Control-Allow-Origin', '*');
-	res.setHeader('Access-Control-Allow-Methods', '*');
-	res.setHeader('Access-Control-Allow-Headers', '*');
+let server = initServer();
 
-	next();
+fs.watchFile(confLocation, { interval: 1000 }, () => {
+	config = getLocalConfig();
+	server.close(() => {
+		server = initServer(true);
+	})
 });
-app.use(customResponseMiddleware);
-app.use(delaysMiddleware);
-app.use(useCacheMiddleware);
-app.use(buildCacheMiddleware);
-
-
-app.listen(3000, function () {
-	console.log('Example app listening on port 3000!');
- });

@@ -1,6 +1,6 @@
 {
   "name": "mockbuilder",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Clone real APIs",
   "main": "index.js",
   "scripts": {
@@ -13,11 +13,18 @@
   ],
   "author": "david.roig.salgado@gmail.com",
   "license": "ISC",
+  "bin": {
+    "proxy-mock": "./index.js"
+  },
   "dependencies": {
     "colors": "^1.3.3",
     "connect": "^3.6.6",
     "cors": "^2.8.5",
     "express": "^4.16.4",
     "http-proxy-middleware": "^0.19.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashleygwilliams/my_package.git"
   }
 }
