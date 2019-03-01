@@ -1,7 +1,7 @@
 {
-  "name": "mockbuilder",
+  "name": "proxy-mock",
   "version": "0.1.1",
-  "description": "Clone real APIs",
+  "description": "HTTP Proxy that caches responses in files for later use",
   "main": "index.js",
   "scripts": {
     "test": "npm test"
