@@ -7,9 +7,14 @@ $ npm install -g proxy2mock
 ```
 
 ## Running
+Usage: proxy-mock [options]
 ```
-$ proxy-mock
+Options:
+  -V, --version             output the version number
+  -p, --port [port number]  port to use (default is 3000)
+  -h, --help                output usage information
 ```
+
 This will create a JSON configuration file named `proxy-mock.conf.json` in the directory in which proxy-mock is being executed.
 
 ## Config File
@@ -39,5 +44,5 @@ Every change in configuration file will restart the server.
 
 # Roadmap
 - Tidy code
+- Make tests
 - Use TypeScript
-    

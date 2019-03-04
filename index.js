@@ -4,13 +4,22 @@ const express = require('express');
 const app = express();
 const fs = require('fs');
 const proxy = require('http-proxy-middleware');
+const program = require('commander');
 require('colors');
-
+const { version } = require('./package.json');
 const cacheDir = 'mocks';
 const confFileName = 'proxy-mock.conf.json';
-
 const confLocation = process.cwd() + '/' + confFileName;
 const dirCacheFile = process.cwd() + '/' + cacheDir;
+
+
+program
+  .version(version)
+  .option('-p, --port [port number]', 'port to use (default is 3000)')
+	.parse(process.argv);
+
+const PORT = parseInt(program.port) || 3000;
+
 
 const baseConfig = {
 	host: "http://localhost:8080",
@@ -121,7 +130,7 @@ function makeProxy() {
 
 
 /**
-* Guarda respuesta en cache de archivo
+* Save response to JSON file
 * @param {string} body 
 * @param {Object} res 
 */
@@ -145,7 +154,9 @@ function saveResponse(body, req, res, cacheDir, cacheFile) {
 }
 
 
-
+/**
+ * 
+ */
 function customResponseMiddleware(req, res, next) {
 	if (req.method === 'OPTIONS') return next();
 	for (let route of config.routeConfig) {
@@ -187,8 +198,8 @@ function initServer(restarted) {
 	.use(useCacheMiddleware)
 	.use(makeProxy());
 	
-	const server = app.listen(3000, function () {
-		console.log( restarted ? 'Server restarted' : 'Backend proxy running on port 3000');
+	const server = app.listen(PORT, function () {
+		console.log( restarted ? 'Server restarted' : `Backend proxy running on port ${PORT}`);
 	});
 	return server;
 }
