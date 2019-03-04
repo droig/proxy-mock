@@ -35,14 +35,14 @@ As described before, the first time you run this tool will create a configuratio
 
 * **host**: is the real backend you want to mock
 * **routeConfig**: holds a list of route configurations, and every configuration support the following options:
-    * **expression**: can be the URL (without the domain and port) or part of it of the route you want to match.
+    * **expression**: can be the entire URL (without the domain and port) or part of the route you want to match. Supports regular expression.
     * **delay** *(optional)*: a delay in seconds you what this route to respond.
     * **status** *(optional)*: the HTTP status you want this route to respond.
     * **body** *(optional)*: a custom body to respond for the route. It will overwrite the original response by the real backend or the cache saved by this tool.
 
 Every change in configuration file will restart the server.
 
-# Roadmap
+## Roadmap
 - Tidy code
 - Make tests
 - Use TypeScript
