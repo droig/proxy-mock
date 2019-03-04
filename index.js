@@ -11,6 +11,7 @@ const cacheDir = 'mocks';
 const confFileName = 'proxy-mock.conf.json';
 const confLocation = process.cwd() + '/' + confFileName;
 const dirCacheFile = process.cwd() + '/' + cacheDir;
+const zlib = require('zlib');
 
 
 program
@@ -56,12 +57,12 @@ function getLocalConfig() {
 let config = getLocalConfig();
 
 
-function getFileName(url) {
+function getFileName(url, method) {
 	return url
 			.replace(/^\//, "").replace(/\/$/, "")
 			.replace(/\//g, ".")
 			//.replace(/\/?\.[0-9]+-[0-9kK]+/, "")     // quito rut
-			+ '.json';
+			+ `.${method}.json`;
 }
 
 
@@ -69,7 +70,7 @@ function useCacheMiddleware(req, res, next) {
 
 	if (config.skipCache) return next();
 	
-	let cacheFile = dirCacheFile + '/' + getFileName(req.url);
+	let cacheFile = dirCacheFile + '/' + getFileName(req.url, req.method);
 
 	if (!fs.existsSync(cacheFile)) return next();
 
@@ -88,38 +89,51 @@ function useCacheMiddleware(req, res, next) {
 function makeProxy() {
 	return proxy({
     target: config.host,
-
+		//secure: false,
+		changeOrigin: true,
     onProxyReq: function(proxyReq, req, res) {
 			//proxyReq.setHeader('foo', 'bar' );
     },
 
     onProxyRes: function(proxyRes, req, res) {
-      var _write = res.write;
-      var _end = res.end;
-      var output;
-      var body = "";
+      const _write = res.write;
+      const _end = res.end;
+      let output;
+			let body = "";
+			let resArr = [];
+			
+			const isGzipped = proxyRes.headers["content-encoding"] == "gzip";
 		
       proxyRes.on('data', function(data) {
-        data = data.toString('utf-8');
-        body += data;
+        //data = data.toString('utf-8');
+				body += data;
+				resArr.push(data);
       });
 
       // Defer all writes
       res.write = () => {};
       res.end = function() {
 				output = body;
+				const buffer = Buffer.concat(resArr);
 
-				let cacheFile = dirCacheFile + '/' + getFileName(req.url);
+				let cacheFile = dirCacheFile + '/' + getFileName(req.url, req.method);
 
-				saveResponse(output, req, res, dirCacheFile, cacheFile)
-
-				res.write = _write;
-
-				if ( body.length ) {
-					_end.apply( res, [output] );
+				if (isGzipped) {
+					zlib.gunzip(buffer, function (err, dezipped) {
+						if (err) throw err;
+						let json = dezipped.toString();
+						res.setHeader("content-encoding", null);
+						_end.apply( res, [json] );
+						saveResponse(json, req, res, dirCacheFile, cacheFile);
+						res.write = _write;
+					});
 				} else {
-					_end.apply( res, arguments );
+					let json = output.toString('utf-8');
+					_end.apply( res, [json] );
+					saveResponse(json, req, res, dirCacheFile, cacheFile);
+					res.write = _write;
 				}
+				
       }
     },
 
@@ -137,19 +151,18 @@ function makeProxy() {
 function saveResponse(body, req, res, cacheDir, cacheFile) {
 	let contentType = res.getHeader('Content-Type');
 
-	// guarda solo respuestas json y con status 200
-	if (/json/.test(contentType) && res.statusCode === 200) {
-
-	// crear directorio si no existe
-	if (!fs.existsSync(cacheDir)){
-			fs.mkdirSync(cacheDir);
-	}
-
-	fs.writeFile(cacheFile, body, 'utf8', function (err) {
-		if (err) {
-			return console.log(err);
+	//if (/json/i.test(contentType) && res.statusCode === 200) {
+	if (/json/i.test(contentType) && res.statusCode === 200) {
+		// crear directorio si no existe
+		if (!fs.existsSync(cacheDir)){
+				fs.mkdirSync(cacheDir);
 		}
-	});
+
+		fs.writeFile(cacheFile, body, 'utf8', function (err) {
+			if (err) {
+				return console.log(err);
+			}
+		});
 	}
 }
 
