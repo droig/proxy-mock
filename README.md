@@ -7,7 +7,7 @@ $ npm install -g proxy2mock
 ```
 
 ## Running
-Usage: proxy-mock [options]
+Usage: pmock [options]
 ```
 Options:
   -V, --version             output the version number
