@@ -6,8 +6,8 @@ HTTP Proxy that caches responses in files for later use.
 $ npm install -g proxy2mock
 ```
 
-## Running
-Usage: pmock [options]
+## Usage
+`$ pmock [options]`
 ```
 Options:
   -V, --version             output the version number
