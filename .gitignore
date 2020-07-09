@@ -2,3 +2,6 @@
 node_modules
 mocks
 proxy-mock.conf.json
+
+.idea
+mocks
