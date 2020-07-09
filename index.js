@@ -110,31 +110,25 @@ function makeProxy() {
 				resArr.push(data);
       });
 
-      // Defer all writes
-      res.write = () => {};
-      res.end = function() {
-				output = body;
-				const buffer = Buffer.concat(resArr);
+proxyRes.on('end', function () {
+                output = body;
+                const buffer = Buffer.concat(resArr);
 
-				let cacheFile = dirCacheFile + '/' + getFileName(req.url, req.method);
+                let cacheFile = dirCacheFile + '/' + getFileName(req.url, req.method);
 
-				if (isGzipped) {
-					zlib.gunzip(buffer, function (err, dezipped) {
-						if (err) throw err;
-						let json = dezipped.toString();
-						res.setHeader("content-encoding", null);
-						_end.apply( res, [json] );
-						saveResponse(json, req, res, dirCacheFile, cacheFile);
-						res.write = _write;
-					});
-				} else {
-					let json = output.toString('utf-8');
-					_end.apply( res, [json] );
-					saveResponse(json, req, res, dirCacheFile, cacheFile);
-					res.write = _write;
-				}
-				
-      }
+                if (isGzipped) {
+                    zlib.gunzip(buffer, function (err, dezipped) {
+                        if (err) throw err;
+                        let data = dezipped.toString();
+                        console.log("gzip decoding successful.");
+                        saveResponse(data, req, res, dirCacheFile, cacheFile);
+                    });
+                } else {
+                    let data = output.toString('utf-8');
+                    saveResponse(data, req, res, dirCacheFile, cacheFile);
+                    console.log("standard response successful.");
+                }
+            });
     },
 
     logLevel: 'debug'
