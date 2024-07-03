@@ -15,13 +15,14 @@ Options:
   -h, --help                output usage information
 ```
 
-This will create a JSON configuration file named `proxy-mock.conf.json` in the directory in which proxy-mock is being executed.
+This will create a JSON configuration file named `proxy-mock.conf.json` in the directory in which proxy-mock is being executed. Also a "mocks" directory will be created with the saved responses.
 
 ## Config File
 As described before, the first time you run this tool will create a configuration file with the below initial configuration:
 ```json
 {
   "host": "http://localhost:8080",
+  "excludeUrls": ["auth", "regexp\/example"],
   "routeConfig": [
     {
       "expression": "delayed/endpoint",
@@ -34,6 +35,7 @@ As described before, the first time you run this tool will create a configuratio
 ```
 
 * **host**: is the real backend you want to mock
+* **excludeUrls**: holds an array of specific URL patterns when you want to bypass a saved response (if any)
 * **routeConfig**: holds a list of route configurations, and every configuration support the following options:
     * **expression**: can be the entire URL (without the domain and port) or part of the route you want to match. Supports regular expression.
     * **delay** *(optional)*: a delay in seconds you what this route to respond.
