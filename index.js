@@ -152,7 +152,7 @@ function saveResponse(body, req, res, cacheDir, cacheFile) {
 	let contentType = res.getHeader('Content-Type');
 
 	//if (/json/i.test(contentType) && res.statusCode === 200) {
-	if (/json/i.test(contentType) && res.statusCode === 200) {
+	if (/json/i.test(contentType) && [200,201,204].includes(res.statusCode)) {
 		// crear directorio si no existe
 		if (!fs.existsSync(cacheDir)){
 				fs.mkdirSync(cacheDir);
